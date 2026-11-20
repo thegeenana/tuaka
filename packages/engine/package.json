@@ -1,0 +1,23 @@
+{
+  "name": "@tuaka/engine",
+  "version": "0.1.0",
+  "description": "Deterministic loan amortization engine: solve for principal, rate, term or payment and build the schedule to the penny.",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@noble/hashes": "^1.7.1",
+    "decimal.js": "^10.4.3"
+  },
+  "devDependencies": {
+    "fast-check": "^3.23.2",
+    "vitest": "^3.0.0"
+  }
+}
