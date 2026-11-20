@@ -1,5 +1,13 @@
 import Decimal from "decimal.js";
-import type { LoanInput, RoundingMode, SolveFor } from "@tuaka/engine";
+import type {
+  ExpenseInput,
+  FixedCostInput,
+  LoanInput,
+  PrepaymentInput,
+  RateChangeInput,
+  RoundingMode,
+  SolveFor,
+} from "@tuaka/engine";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
@@ -21,6 +29,32 @@ export interface LoanFormState {
   /** Upper end of the principal slider; the ↑/↓ buttons rescale it. */
   principalMax: number;
   paymentMax: number;
+  expenses: ExpenseRow[];
+  prepayments: PrepaymentRow[];
+  fixedCosts: FixedCostRow[];
+  rateChanges: RateChangeRow[];
+}
+
+/** Each editable row carries a local id for React keys; ids never reach the engine. */
+export type ExpenseRow = ExpenseInput & { id: string };
+export type PrepaymentRow = PrepaymentInput & { id: string };
+export type FixedCostRow = FixedCostInput & { id: string };
+export type RateChangeRow = RateChangeInput & { id: string };
+
+export interface ListRows {
+  expenses: ExpenseRow;
+  prepayments: PrepaymentRow;
+  fixedCosts: FixedCostRow;
+  rateChanges: RateChangeRow;
+}
+export type ListKey = keyof ListRows;
+
+export function newId(): string {
+  try {
+    return crypto.randomUUID();
+  } catch {
+    return `id-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  }
 }
 
 export interface LoanFormActions {
@@ -36,6 +70,9 @@ export interface LoanFormActions {
   setRoundingMode(value: RoundingMode): void;
   setCurrency(value: string): void;
   rescale(field: "principalMax" | "paymentMax", direction: "up" | "down"): void;
+  addRow<K extends ListKey>(key: K, row: Omit<ListRows[K], "id">): void;
+  updateRow<K extends ListKey>(key: K, id: string, patch: Partial<ListRows[K]>): void;
+  removeRow(key: ListKey, id: string): void;
   reset(): void;
 }
 
@@ -52,6 +89,10 @@ export const DEFAULTS: LoanFormState = {
   currency: "GBP",
   principalMax: 1_000_000,
   paymentMax: 5_000,
+  expenses: [],
+  prepayments: [],
+  fixedCosts: [],
+  rateChanges: [],
 };
 
 const isNumber = (v: string) => /^\d+(\.\d+)?$/.test(v.trim());
@@ -116,10 +157,23 @@ export const useLoanStore = create<LoanFormState & LoanFormActions>()(
         if (next >= 1_000 && next <= 100_000_000) set({ [field]: next } as Partial<LoanFormState>);
       },
 
+      addRow(key, row) {
+        set({ [key]: [...get()[key], { ...row, id: newId() }] } as Partial<LoanFormState>);
+      },
+      updateRow(key, id, patch) {
+        set({ [key]: (get()[key] as Array<{ id: string }>).map((r) => (r.id === id ? { ...r, ...patch } : r)) } as Partial<LoanFormState>);
+      },
+      removeRow(key, id) {
+        set({ [key]: (get()[key] as Array<{ id: string }>).filter((r) => r.id !== id) } as Partial<LoanFormState>);
+      },
+
       reset: () => set(DEFAULTS),
     }),
     {
       name: "tuaka.scenario.v1",
+      version: 2,
+      // v1 had no modifier lists; start them empty.
+      migrate: (persisted) => ({ ...DEFAULTS, ...(persisted as Partial<LoanFormState>) }),
       // Storage can be unavailable (private mode, blocked cookies); the app still works without it.
       storage: createJSONStorage(() => {
         try {
@@ -135,9 +189,24 @@ export const useLoanStore = create<LoanFormState & LoanFormActions>()(
   ),
 );
 
-/** The engine input for the current form state. */
+const filled = (v: string | undefined) => v !== undefined && v.trim() !== "";
+/** Drop the UI id and blank optional fields. */
+function strip<T extends { id: string }>(row: T): Omit<T, "id"> {
+  const { id: _id, ...rest } = row;
+  void _id;
+  return Object.fromEntries(Object.entries(rest).filter(([, v]) => v !== "" && v !== undefined)) as Omit<T, "id">;
+}
+
+/**
+ * The engine input for the current form state. Rows still being typed
+ * (no amount, rate or date yet) are left out rather than raising an error.
+ */
 export function toLoanInput(s: LoanFormState): LoanInput {
   return {
+    expenses: s.expenses.filter((r) => filled(r.amount)).map(strip),
+    prepayments: s.prepayments.filter((r) => filled(r.amount) && filled(r.date)).map(strip),
+    fixedCosts: s.fixedCosts.filter((r) => filled(r.amount)).map(strip),
+    rateChanges: s.rateChanges.filter((r) => filled(r.annualRatePct) && filled(r.effectiveDate)).map(strip),
     solveFor: s.solveFor,
     principal: s.principal.trim(),
     annualRatePct: s.annualRatePct.trim(),

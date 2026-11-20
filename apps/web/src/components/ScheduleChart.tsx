@@ -34,6 +34,8 @@ function shortNumber(n: number): string {
 function buildSeries(rows: ScheduleRow[], view: ChartView): { series: Series[]; stacked: boolean; title: string } {
   const interest = rows.map((r) => Number(r.interest));
   const principal = rows.map((r) => Number(r.principal));
+  const extra = rows.map((r) => Number(r.extraPrincipal));
+  const hasExtra = extra.some((x) => x > 0);
   const cumulative = (xs: number[]) => {
     let acc = 0;
     return xs.map((x) => (acc += x));
@@ -41,11 +43,12 @@ function buildSeries(rows: ScheduleRow[], view: ChartView): { series: Series[]; 
   switch (view) {
     case "amort":
       return {
-        title: "Each payment split into interest and principal",
+        title: hasExtra ? "Each month: interest, principal and extra" : "Each payment split into interest and principal",
         stacked: true,
         series: [
           { key: "principal", label: "Principal", className: "s-principal", values: principal },
           { key: "interest", label: "Interest", className: "s-interest", values: interest },
+          ...(hasExtra ? [{ key: "extra", label: "Extra", className: "s-extra", values: extra }] : []),
         ],
       };
     case "repay":
@@ -53,7 +56,7 @@ function buildSeries(rows: ScheduleRow[], view: ChartView): { series: Series[]; 
         title: "Cumulative amount repaid",
         stacked: true,
         series: [
-          { key: "principal", label: "Principal repaid", className: "s-principal", values: cumulative(principal) },
+          { key: "principal", label: "Principal repaid", className: "s-principal", values: cumulative(principal.map((p, i) => p + (extra[i] ?? 0))) },
           { key: "interest", label: "Interest paid", className: "s-interest", values: cumulative(interest) },
         ],
       };
@@ -78,7 +81,14 @@ export function ScheduleChart({ rows, view, currencySymbol }: { rows: ScheduleRo
 
   const n = rows.length;
   const tops = rows.map((_, i) => (stacked ? series.reduce((a, s) => a + (s.values[i] ?? 0), 0) : Math.max(...series.map((s) => s.values[i] ?? 0))));
-  const yMax = niceMax(Math.max(...tops, 0));
+  // Scale to typical months, not one-off spikes: a single lump sum would otherwise
+  // flatten every regular payment. Months above the cap are clipped and labelled.
+  const sorted = [...tops].sort((a, b) => a - b);
+  const p95 = sorted[Math.floor((sorted.length - 1) * 0.95)] ?? 0;
+  const peak = sorted[sorted.length - 1] ?? 0;
+  const clip = view === "amort" && peak > p95 * 1.5;
+  const yMax = niceMax(clip ? p95 * 1.15 : Math.max(peak, 0));
+  const spikes = clip ? rows.map((r, i) => ({ i, row: r, total: tops[i] ?? 0 })).filter((t) => t.total > yMax) : [];
   const plotW = W - PAD.left - PAD.right;
   const plotH = H - PAD.top - PAD.bottom;
   const x = (i: number) => PAD.left + (n <= 1 ? plotW / 2 : (i / (n - 1)) * plotW);
@@ -87,8 +97,9 @@ export function ScheduleChart({ rows, view, currencySymbol }: { rows: ScheduleRo
   // Stacked areas: each band sits on the sum of the bands below it.
   const bands = series.map((s, si) => {
     const base = rows.map((_, i) => (stacked ? series.slice(0, si).reduce((a, t) => a + (t.values[i] ?? 0), 0) : 0));
-    const topLine = s.values.map((v, i) => `${x(i).toFixed(1)},${y(v + (base[i] ?? 0)).toFixed(1)}`);
-    const bottomLine = base.map((b, i) => `${x(i).toFixed(1)},${y(b).toFixed(1)}`).reverse();
+    const cy = (v: number) => y(Math.min(v, yMax));
+    const topLine = s.values.map((v, i) => `${x(i).toFixed(1)},${cy(v + (base[i] ?? 0)).toFixed(1)}`);
+    const bottomLine = base.map((b, i) => `${x(i).toFixed(1)},${cy(b).toFixed(1)}`).reverse();
     return { ...s, area: `M${topLine.join("L")}L${bottomLine.join("L")}Z`, line: `M${topLine.join("L")}` };
   });
 
@@ -159,6 +170,16 @@ export function ScheduleChart({ rows, view, currencySymbol }: { rows: ScheduleRo
           <g key={b.key} className={`band ${b.className}`}>
             <path d={b.area} className="area" />
             <path d={b.line} className="line" />
+          </g>
+        ))}
+        {spikes.map((sp, k) => (
+          <g key={sp.i} className="spike">
+            <path d={`M${x(sp.i) - 5},${PAD.top + 9} L${x(sp.i) + 5},${PAD.top + 9} L${x(sp.i)},${PAD.top + 1} Z`} />
+            {k < 6 && (
+              <text x={Math.min(x(sp.i) + 8, W - PAD.right - 4)} y={PAD.top + 10} textAnchor={x(sp.i) > W - 140 ? "end" : "start"}>
+                {currencySymbol}{shortNumber(sp.total)} in {longDate(sp.row.date).replace(/^\d+ /, "")}
+              </text>
+            )}
           </g>
         ))}
         {hoverRow && hover !== null && (

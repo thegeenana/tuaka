@@ -57,6 +57,8 @@ describe("reference screen (exact mode)", () => {
       payments: year === 2024 ? 5 : 12,
       interest,
       principal,
+      extraPrincipal: "0.00",
+      expenses: "0.00",
       total,
       closingBalance: balance,
       ltvPct: ltv,

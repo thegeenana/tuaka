@@ -154,3 +154,31 @@ button, input, select { font: inherit; color: inherit; }
   .solver-extra:empty { display: none; }
   .loan-form { grid-template-columns: 1fr; }
 }
+
+/* Modifier editors */
+.tabs .count { display: inline-block; margin-left: 6px; min-width: 18px; padding: 0 5px; border-radius: 9px; background: var(--panel-2); color: var(--text); font-size: 11px; line-height: 18px; text-align: center; }
+.editor { display: grid; gap: 10px; }
+.intro { margin: 0; color: var(--muted); font-size: 13.5px; max-width: 80ch; }
+.empty { margin: 0; padding: 14px; border: 1px dashed var(--line); border-radius: 8px; color: var(--muted); font-size: 13.5px; text-align: center; }
+.editor-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; padding: 10px; background: var(--panel-2); border-radius: 8px; }
+.cell { display: grid; gap: 3px; min-width: 120px; flex: 1 1 120px; }
+.cell.wide { flex: 2 1 200px; }
+.cell input, .cell select { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; font-variant-numeric: tabular-nums; min-width: 0; }
+.cell input:focus, .cell select:focus { outline: none; border-color: var(--principal); }
+.cell input:disabled { opacity: 0.5; }
+.check { display: flex; align-items: center; gap: 6px; font-size: 13.5px; padding: 8px 4px; white-space: nowrap; }
+.check input { width: 16px; height: 16px; accent-color: var(--principal); }
+.icon-button { background: none; border: 1px solid var(--line); border-radius: 6px; width: 34px; height: 34px; font-size: 18px; line-height: 1; cursor: pointer; color: var(--muted); }
+.icon-button:hover { color: var(--danger); border-color: var(--danger); }
+.add { justify-self: start; background: none; border: 1px dashed var(--muted); border-radius: 8px; padding: 7px 14px; cursor: pointer; font-weight: 600; }
+.add:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Results additions */
+.s-extra .area, .s-extra .swatch { fill: color-mix(in srgb, var(--balance) 70%, transparent); }
+.s-extra .line { stroke: var(--balance); }
+.num-table .c-extra { color: var(--balance); }
+.num-table tr.rate-changed td, .num-table tr.rate-changed th { border-top: 2px solid var(--accent); }
+.card.good { outline: 1px solid color-mix(in srgb, var(--balance) 60%, transparent); }
+.card.good dd:not(.note) { color: var(--balance); }
+.spike path { fill: var(--balance); }
+.spike text { fill: var(--text); font-size: 11px; }
