@@ -18,6 +18,8 @@ TuaKa (Twi: "pay the debt") is a loan amortization calculator. Set any three of 
 - **Rounding is explicit**:
   - `half_up` (default) / `half_even` — payment and each month's interest rounded to the penny, as a lender bills. The final payment is resized to clear the balance.
   - `none` — full precision, rounded only for display, as most calculators do.
+- **Modifiers**, applied month by month in a fixed order: rate changes (optionally recasting the payment), interest, scheduled principal, prepayments (finish sooner or pay less), then running expenses, which never touch the balance.
+- **APR** (nominal) and **APRC** (effective annual) from the cash the borrower actually receives against every payment, with in-APR fees included and taxes such as stamp duty excluded by default.
 - **Every result carries `engineVersion` and an `inputHash`** (SHA-256 of the canonical input), so any number can be traced back to exactly what produced it.
 
 ### Reference test
@@ -39,7 +41,7 @@ Requires Node 22+.
 
 1. ~~Engine: fixed-rate solve-for-any, rounding, calendar, golden tests~~
 2. ~~Calculator UI, no backend~~
-3. Modifiers: expenses, prepayments and recurring extra payments, up-front costs + APR, rate steps
+3. ~~Modifiers: expenses, prepayments and recurring extra payments, up-front costs + APR, rate steps~~
 4. Accounts and persistence: sign-in, PostgreSQL, save/share, CSV/PDF export
 5. Adjustable rates and UK features: index data, caps, early repayment charges, overpayment allowance
 6. Side-by-side comparison of offers

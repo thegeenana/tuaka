@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { LoanDataForm } from "./components/LoanDataForm";
+import { ExpensesEditor, ExtraEditor, FixedCostsEditor, PrepaymentEditor, RateChangesEditor } from "./components/Modifiers";
 import { ScheduleChart, type ChartView } from "./components/ScheduleChart";
 import { SolverBar } from "./components/SolverBar";
 import { AnnualTable, PaymentsTable, SummaryPanel } from "./components/Tables";
@@ -8,6 +9,7 @@ import { toLoanInput, useLoanStore } from "./store";
 import { useCalculation } from "./useCalculation";
 
 type TableView = "annual" | "payments" | "summary";
+type InputView = "loan" | "expenses" | "prepayment" | "extra" | "fixed" | "interest";
 
 const CHART_TABS: Array<[ChartView, string]> = [
   ["amort", "Amort"],
@@ -21,12 +23,25 @@ const TABLE_TABS: Array<[TableView, string]> = [
   ["summary", "Summary"],
 ];
 
-function Tabs<T extends string>({ tabs, value, onChange, label }: { tabs: Array<[T, string]>; value: T; onChange(v: T): void; label: string }) {
+function Tabs<T extends string>({
+  tabs,
+  value,
+  onChange,
+  label,
+  counts,
+}: {
+  tabs: Array<[T, string]>;
+  value: T;
+  onChange(v: T): void;
+  label: string;
+  counts?: Partial<Record<T, number>>;
+}) {
   return (
     <div role="tablist" aria-label={label} className="tabs">
       {tabs.map(([key, text]) => (
         <button key={key} role="tab" type="button" aria-selected={value === key} className={value === key ? "active" : ""} onClick={() => onChange(key)}>
           {text}
+          {counts?.[key] ? <span className="count">{counts[key]}</span> : null}
         </button>
       ))}
     </div>
@@ -39,6 +54,22 @@ export function App() {
   const { result, error } = useCalculation(input);
   const [chartView, setChartView] = useState<ChartView>("amort");
   const [tableView, setTableView] = useState<TableView>("annual");
+  const [inputView, setInputView] = useState<InputView>("loan");
+  const inputTabs: Array<[InputView, string]> = [
+    ["loan", "Loan data"],
+    ["expenses", "Expenses"],
+    ["prepayment", "Prepayment"],
+    ["extra", "Extra"],
+    ["fixed", "Fixed"],
+    ["interest", "Interest"],
+  ];
+  const counts: Partial<Record<InputView, number>> = {
+    expenses: state.expenses.length,
+    prepayment: state.prepayments.filter((p) => p.kind === "one_off").length,
+    extra: state.prepayments.filter((p) => p.kind === "recurring").length,
+    fixed: state.fixedCosts.length,
+    interest: state.rateChanges.length,
+  };
 
   return (
     <div className="app">
@@ -75,9 +106,14 @@ export function App() {
         </main>
       )}
 
-      <section className="panel" aria-label="Loan data">
-        <h2>Loan data</h2>
-        <LoanDataForm result={result} errorField={error?.field} />
+      <section className="panel" aria-label="Loan inputs">
+        <Tabs<InputView> tabs={inputTabs} value={inputView} onChange={setInputView} label="Loan inputs" counts={counts} />
+        {inputView === "loan" && <LoanDataForm result={result} errorField={error?.field} />}
+        {inputView === "expenses" && <ExpensesEditor />}
+        {inputView === "prepayment" && <PrepaymentEditor />}
+        {inputView === "extra" && <ExtraEditor />}
+        {inputView === "fixed" && <FixedCostsEditor />}
+        {inputView === "interest" && <RateChangesEditor />}
       </section>
 
       <footer className="foot">

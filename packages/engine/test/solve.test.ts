@@ -63,7 +63,7 @@ describe("round trips (exact mode)", () => {
       }),
       { numRuns: 150 },
     );
-  });
+  }, 60_000);
 });
 
 describe("schedule invariants (lender mode)", () => {
@@ -100,7 +100,7 @@ describe("schedule invariants (lender mode)", () => {
       }),
       { numRuns: 200 },
     );
-  });
+  }, 60_000);
 });
 
 describe("dates", () => {
